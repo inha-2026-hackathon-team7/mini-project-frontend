@@ -3,10 +3,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell, BackLink } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { formatWon } from "@/data/api";
 import { menus, restaurants } from "@/data/mock";
-import type { OrderPaymentType, PaymentMethod } from "@/data/types";
+import type { PaymentMethod } from "@/data/types";
 import { useStoreValue } from "@/hooks/use-store";
 import { createOrder, getCart, getCartItems } from "@/lib/store";
 
@@ -14,7 +13,7 @@ export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
       { title: "결제하기 — 배달모아" },
-      { name: "description", content: "결제 수단과 결제 방식을 선택하고 주문을 완료하세요." },
+      { name: "description", content: "결제 수단을 선택하고 주문을 완료하세요." },
       { property: "og:title", content: "결제하기 — 배달모아" },
       { property: "og:description", content: "결제 수단을 선택하고 주문을 완료하세요." },
     ],
@@ -28,18 +27,11 @@ const METHODS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "cash", label: "만나서 결제" },
 ];
 
-const TYPES: Array<{ value: OrderPaymentType; label: string }> = [
-  { value: "single", label: "혼자 결제" },
-  { value: "split", label: "나눠서 결제" },
-];
-
 function CheckoutPage() {
   const navigate = useNavigate();
   const cart = useStoreValue(getCart, null);
   const items = useStoreValue(getCartItems, []);
   const [method, setMethod] = useState<PaymentMethod>("card");
-  const [paymentType, setPaymentType] = useState<OrderPaymentType>("single");
-  const [payers, setPayers] = useState(2);
 
   const restaurant = restaurants.find((r) => r.restaurant_id === cart?.restaurant_id);
   const lines = items.map((item) => ({
@@ -54,8 +46,8 @@ function CheckoutPage() {
     if (!cart || lines.length === 0) return;
     const order = createOrder({
       restaurantId: cart.restaurant_id,
-      paymentType,
-      requiredPayers: paymentType === "split" ? payers : 1,
+      paymentType: "single",
+      requiredPayers: 1,
       paymentMethod: method,
       totalAmount: total,
       items: lines.map(({ item, menu }) => ({
@@ -118,43 +110,6 @@ function CheckoutPage() {
                 </button>
               ))}
             </div>
-          </section>
-
-          <section>
-            <h2 className="mb-2 font-bold">결제 방식</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setPaymentType(t.value)}
-                  className={`rounded-lg border px-2 py-3 text-sm font-medium transition-colors ${
-                    paymentType === t.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {paymentType === "split" && (
-              <div className="mt-3 space-y-2">
-                <label htmlFor="payers" className="text-sm font-medium">
-                  결제 인원
-                </label>
-                <Input
-                  id="payers"
-                  type="number"
-                  min={2}
-                  value={payers}
-                  onChange={(e) => setPayers(Math.max(2, Number(e.target.value) || 2))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  1인당 약 {formatWon(Math.ceil(total / payers))}
-                </p>
-              </div>
-            )}
           </section>
 
           <dl className="space-y-1.5 rounded-xl bg-muted/60 p-4 text-sm">
