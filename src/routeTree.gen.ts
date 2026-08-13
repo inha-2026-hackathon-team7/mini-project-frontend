@@ -10,33 +10,117 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as OrdersIndexRouteImport } from './routes/orders.index'
+import { Route as OrdersOrderIdRouteImport } from './routes/orders.$orderId'
+import { Route as RestaurantsRestaurantIdIndexRouteImport } from './routes/restaurants.$restaurantId.index'
+import { Route as RestaurantsRestaurantIdMenusMenuIdRouteImport } from './routes/restaurants.$restaurantId.menus.$menuId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIndexRoute = OrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
+  id: '/orders/$orderId',
+  path: '/orders/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantsRestaurantIdIndexRoute =
+  RestaurantsRestaurantIdIndexRouteImport.update({
+    id: '/restaurants/$restaurantId/',
+    path: '/restaurants/$restaurantId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const RestaurantsRestaurantIdMenusMenuIdRoute =
+  RestaurantsRestaurantIdMenusMenuIdRouteImport.update({
+    id: '/restaurants/$restaurantId/menus/$menuId',
+    path: '/restaurants/$restaurantId/menus/$menuId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/orders/': typeof OrdersIndexRoute
+  '/restaurants/$restaurantId/': typeof RestaurantsRestaurantIdIndexRoute
+  '/restaurants/$restaurantId/menus/$menuId': typeof RestaurantsRestaurantIdMenusMenuIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/orders': typeof OrdersIndexRoute
+  '/restaurants/$restaurantId': typeof RestaurantsRestaurantIdIndexRoute
+  '/restaurants/$restaurantId/menus/$menuId': typeof RestaurantsRestaurantIdMenusMenuIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/orders/$orderId': typeof OrdersOrderIdRoute
+  '/orders/': typeof OrdersIndexRoute
+  '/restaurants/$restaurantId/': typeof RestaurantsRestaurantIdIndexRoute
+  '/restaurants/$restaurantId/menus/$menuId': typeof RestaurantsRestaurantIdMenusMenuIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/cart'
+    | '/checkout'
+    | '/orders/$orderId'
+    | '/orders/'
+    | '/restaurants/$restaurantId/'
+    | '/restaurants/$restaurantId/menus/$menuId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/cart'
+    | '/checkout'
+    | '/orders/$orderId'
+    | '/orders'
+    | '/restaurants/$restaurantId'
+    | '/restaurants/$restaurantId/menus/$menuId'
+  id:
+    | '__root__'
+    | '/'
+    | '/cart'
+    | '/checkout'
+    | '/orders/$orderId'
+    | '/orders/'
+    | '/restaurants/$restaurantId/'
+    | '/restaurants/$restaurantId/menus/$menuId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CartRoute: typeof CartRoute
+  CheckoutRoute: typeof CheckoutRoute
+  OrdersOrderIdRoute: typeof OrdersOrderIdRoute
+  OrdersIndexRoute: typeof OrdersIndexRoute
+  RestaurantsRestaurantIdIndexRoute: typeof RestaurantsRestaurantIdIndexRoute
+  RestaurantsRestaurantIdMenusMenuIdRoute: typeof RestaurantsRestaurantIdMenusMenuIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +132,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/': {
+      id: '/orders/'
+      path: '/orders'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/$orderId': {
+      id: '/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/orders/$orderId'
+      preLoaderRoute: typeof OrdersOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurants/$restaurantId/': {
+      id: '/restaurants/$restaurantId/'
+      path: '/restaurants/$restaurantId'
+      fullPath: '/restaurants/$restaurantId/'
+      preLoaderRoute: typeof RestaurantsRestaurantIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurants/$restaurantId/menus/$menuId': {
+      id: '/restaurants/$restaurantId/menus/$menuId'
+      path: '/restaurants/$restaurantId/menus/$menuId'
+      fullPath: '/restaurants/$restaurantId/menus/$menuId'
+      preLoaderRoute: typeof RestaurantsRestaurantIdMenusMenuIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CartRoute: CartRoute,
+  CheckoutRoute: CheckoutRoute,
+  OrdersOrderIdRoute: OrdersOrderIdRoute,
+  OrdersIndexRoute: OrdersIndexRoute,
+  RestaurantsRestaurantIdIndexRoute: RestaurantsRestaurantIdIndexRoute,
+  RestaurantsRestaurantIdMenusMenuIdRoute:
+    RestaurantsRestaurantIdMenusMenuIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
