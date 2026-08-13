@@ -77,14 +77,6 @@ function OrderDetailPage() {
                 <dd>{payment ? PAYMENT_STATUS_LABEL[payment.status] : "-"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">결제 방식</dt>
-                <dd>
-                  {order.payment_type === "split"
-                    ? `${order.required_payers}인 분할 결제`
-                    : "혼자 결제"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
                 <dt className="text-muted-foreground">메뉴 금액</dt>
                 <dd>{formatWon(itemsTotal)}</dd>
               </div>
