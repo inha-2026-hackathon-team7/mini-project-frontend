@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
-import { formatWon, restaurantImagesQuery, restaurantsQuery } from "@/data/api";
+import { formatWon, restaurantsQuery } from "@/data/api";
 import { restaurantImages } from "@/data/mock";
 
 export const Route = createFileRoute("/")({
@@ -120,4 +120,3 @@ function RestaurantListPage() {
   );
 }
 
-void restaurantImagesQuery;
