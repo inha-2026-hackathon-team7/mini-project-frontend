@@ -54,7 +54,6 @@ function OrderListPage() {
                   <p className="mt-1 font-semibold">{restaurant?.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {formatWon(order.total_amount)}
-                    {order.payment_type === "split" && ` · ${order.required_payers}인 분할`}
                   </p>
                 </Link>
               </li>
