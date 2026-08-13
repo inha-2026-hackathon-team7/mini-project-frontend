@@ -37,7 +37,16 @@ function CartPage() {
   return (
     <AppShell
       title="장바구니"
-      backTo={<BackLink to="/" />}
+      backTo={
+        restaurant ? (
+          <BackLink
+            to="/restaurants/$restaurantId"
+            params={{ restaurantId: String(restaurant.restaurant_id) }}
+          />
+        ) : (
+          <BackLink to="/" />
+        )
+      }
       footer={
         lines.length > 0 ? (
           <div className="space-y-2">
