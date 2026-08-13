@@ -72,7 +72,7 @@ export const restaurantImages: RestaurantImage[] = restaurants.flatMap((r, i) =>
   {
     image_id: i * 2 + 1,
     restaurant_id: r.restaurant_id,
-    image_url: ph(r.name, "800x500"),
+    image_url: ph(`Restaurant ${r.restaurant_id}`, "800x500"),
     type: "thumbnail" as const,
     sort_order: 0,
     created_at: NOW,
@@ -80,7 +80,7 @@ export const restaurantImages: RestaurantImage[] = restaurants.flatMap((r, i) =>
   {
     image_id: i * 2 + 2,
     restaurant_id: r.restaurant_id,
-    image_url: ph(`${r.name} 매장`, "800x500", "0F766E"),
+    image_url: ph(`Restaurant ${r.restaurant_id} Interior`, "800x500", "0F766E"),
     type: "detail" as const,
     sort_order: 1,
     created_at: NOW,
@@ -132,7 +132,7 @@ export const menus: Menu[] = menuSeed.map(([restaurantId, name, description, pri
   name,
   description,
   price,
-  image_url: ph(name, "400x300", i % 2 === 0 ? "1FC7B6" : "0F766E"),
+  image_url: ph(`Menu ${i + 1}`, "400x300", i % 2 === 0 ? "1FC7B6" : "0F766E"),
   is_available: true,
   created_at: NOW,
   updated_at: NOW,
