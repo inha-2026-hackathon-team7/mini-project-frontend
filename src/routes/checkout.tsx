@@ -1,13 +1,13 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AppShell, BackLink } from "@/components/AppShell";
+import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { formatWon } from "@/data/api";
-import { menus, restaurants } from "@/data/mock";
 import type { PaymentMethod } from "@/data/types";
-import { useStoreValue } from "@/hooks/use-store";
-import { createOrder, getCart, getCartItems } from "@/lib/store";
+import { CART_QUERY_KEY, cartQuery, clearCart } from "@/lib/cart";
+import { createOrder } from "@/lib/store";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -29,36 +29,58 @@ const METHODS: Array<{ value: PaymentMethod; label: string }> = [
 
 function CheckoutPage() {
   const navigate = useNavigate();
-  const cart = useStoreValue(getCart, null);
-  const items = useStoreValue(getCartItems, []);
+  const queryClient = useQueryClient();
+  const { data: cart, isLoading, error } = useQuery(cartQuery());
   const [method, setMethod] = useState<PaymentMethod>("card");
+  const [pending, setPending] = useState(false);
 
-  const restaurant = restaurants.find((r) => r.restaurant_id === cart?.restaurant_id);
-  const lines = items.map((item) => ({
-    item,
-    menu: menus.find((m) => m.menu_id === item.menu_id)!,
-  }));
-  const subtotal = lines.reduce((sum, l) => sum + l.menu.price * l.item.quantity, 0);
-  const deliveryFee = restaurant?.delivery_fee ?? 0;
-  const total = subtotal + deliveryFee;
+  const items = cart?.items ?? [];
+  const subtotal = cart?.subtotal ?? 0;
+  const deliveryFee = cart?.deliveryFee ?? 0;
+  const total = cart?.totalAmount ?? subtotal + deliveryFee;
 
-  const handlePay = () => {
-    if (!cart || lines.length === 0) return;
-    const order = createOrder({
-      restaurantId: cart.restaurant_id,
-      paymentType: "single",
-      requiredPayers: 1,
-      paymentMethod: method,
-      totalAmount: total,
-      items: lines.map(({ item, menu }) => ({
-        menu_id: menu.menu_id,
-        menu_name: menu.name,
-        menu_price: menu.price,
-        quantity: item.quantity,
-      })),
-    });
-    toast.success("결제가 완료되었어요");
-    navigate({ to: "/orders/$orderId", params: { orderId: String(order.order_id) } });
+  if (isLoading) {
+    return (
+      <AppShell title="결제하기" backTo={<BackLink to="/cart" />}>
+        <LoadingState />
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell title="결제하기" backTo={<BackLink to="/cart" />}>
+        <ApiErrorState message={(error as Error).message} />
+      </AppShell>
+    );
+  }
+
+  const handlePay = async () => {
+    if (!cart?.restaurantId || items.length === 0) return;
+    setPending(true);
+    try {
+      // 주문/결제 API가 아직 없어 로컬에 주문을 생성한다.
+      const order = createOrder({
+        restaurantId: cart.restaurantId,
+        restaurantName: cart.restaurantName ?? "",
+        paymentMethod: method,
+        totalAmount: total,
+        items: items.map((item) => ({
+          menu_id: item.menuId,
+          menu_name: item.menuName,
+          menu_price: item.menuPrice,
+          quantity: item.quantity,
+        })),
+      });
+      await clearCart();
+      await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+      toast.success("결제가 완료되었어요");
+      navigate({ to: "/orders/$orderId", params: { orderId: String(order.order_id) } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -66,27 +88,31 @@ function CheckoutPage() {
       title="결제하기"
       backTo={<BackLink to="/cart" />}
       footer={
-        <Button className="h-12 w-full text-base" disabled={lines.length === 0} onClick={handlePay}>
+        <Button
+          className="h-12 w-full text-base"
+          disabled={items.length === 0 || pending}
+          onClick={handlePay}
+        >
           {formatWon(total)} 결제하기
         </Button>
       }
     >
-      {lines.length === 0 ? (
-        <p className="py-24 text-center text-sm text-muted-foreground">
-          결제할 상품이 없어요.
-        </p>
+      {items.length === 0 ? (
+        <p className="py-24 text-center text-sm text-muted-foreground">결제할 상품이 없어요.</p>
       ) : (
         <div className="space-y-6 p-4">
           <section>
             <h2 className="mb-2 font-bold">주문 내역</h2>
-            <p className="mb-2 text-sm text-muted-foreground">{restaurant?.name}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{cart?.restaurantName}</p>
             <ul className="space-y-1 text-sm">
-              {lines.map(({ item, menu }) => (
-                <li key={item.cart_item_id} className="flex justify-between">
+              {items.map((item) => (
+                <li key={item.cartItemId} className="flex justify-between">
                   <span>
-                    {menu.name} x {item.quantity}
+                    {item.menuName} x {item.quantity}
                   </span>
-                  <span>{formatWon(menu.price * item.quantity)}</span>
+                  <span>
+                    {formatWon(item.itemTotalAmount ?? item.menuPrice * item.quantity)}
+                  </span>
                 </li>
               ))}
             </ul>

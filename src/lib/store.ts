@@ -1,18 +1,8 @@
-import type {
-  Cart,
-  CartItem,
-  Order,
-  OrderItem,
-  OrderPaymentType,
-  Payment,
-  PaymentMethod,
-} from "@/data/types";
+import type { Order, OrderItem, Payment, PaymentMethod } from "@/data/types";
 
-// 브라우저 localStorage를 임시 저장소로 사용한다 (API 서버 준비 전).
+// 주문/결제 API가 아직 없어 브라우저 localStorage를 임시 저장소로 사용한다.
+// 주문 API가 추가되면 이 파일을 API 호출로 교체하면 된다.
 const KEYS = {
-  session: "bm.session_id",
-  cart: "bm.cart",
-  cartItems: "bm.cart_items",
   orders: "bm.orders",
   orderItems: "bm.order_items",
   payments: "bm.payments",
@@ -36,16 +26,6 @@ function write(key: string, value: unknown) {
   window.dispatchEvent(new Event("bm-store-change"));
 }
 
-export function getSessionId(): string {
-  if (!isBrowser()) return "";
-  let id = window.localStorage.getItem(KEYS.session);
-  if (!id) {
-    id = crypto.randomUUID();
-    window.localStorage.setItem(KEYS.session, id);
-  }
-  return id;
-}
-
 export const subscribeStore = (listener: () => void) => {
   if (!isBrowser()) return () => {};
   window.addEventListener("bm-store-change", listener);
@@ -58,63 +38,6 @@ export const subscribeStore = (listener: () => void) => {
 
 const now = () => new Date().toISOString();
 
-export const getCart = () => read<Cart | null>(KEYS.cart, null);
-export const getCartItems = () => read<CartItem[]>(KEYS.cartItems, []);
-
-export function clearCart() {
-  write(KEYS.cart, null);
-  write(KEYS.cartItems, []);
-}
-
-export function addToCart(restaurantId: number, menuId: number, quantity: number) {
-  const cart = getCart();
-  let items = getCartItems();
-
-  if (!cart || cart.restaurant_id !== restaurantId) {
-    const newCart: Cart = {
-      cart_id: Date.now(),
-      session_id: getSessionId(),
-      restaurant_id: restaurantId,
-      created_at: now(),
-      updated_at: now(),
-    };
-    write(KEYS.cart, newCart);
-    items = [];
-  }
-
-  const cartId = (getCart() as Cart).cart_id;
-  const existing = items.find((i) => i.menu_id === menuId);
-  if (existing) {
-    existing.quantity += quantity;
-    existing.updated_at = now();
-  } else {
-    items.push({
-      cart_item_id: Date.now() + Math.floor(Math.random() * 1000),
-      cart_id: cartId,
-      menu_id: menuId,
-      quantity,
-      created_at: now(),
-      updated_at: now(),
-    });
-  }
-  write(KEYS.cartItems, items);
-}
-
-export function updateCartItemQuantity(cartItemId: number, quantity: number) {
-  let items = getCartItems();
-  if (quantity <= 0) {
-    items = items.filter((i) => i.cart_item_id !== cartItemId);
-  } else {
-    items = items.map((i) =>
-      i.cart_item_id === cartItemId ? { ...i, quantity, updated_at: now() } : i,
-    );
-  }
-  write(KEYS.cartItems, items);
-  if (items.length === 0) write(KEYS.cart, null);
-}
-
-export const removeCartItem = (cartItemId: number) => updateCartItemQuantity(cartItemId, 0);
-
 export const getOrders = () =>
   read<Order[]>(KEYS.orders, []).sort((a, b) => b.order_id - a.order_id);
 export const getOrderItems = (orderId: number) =>
@@ -126,8 +49,7 @@ export const getOrder = (orderId: number) =>
 
 export function createOrder(input: {
   restaurantId: number;
-  paymentType: OrderPaymentType;
-  requiredPayers: number;
+  restaurantName: string;
   paymentMethod: PaymentMethod;
   totalAmount: number;
   items: Array<{ menu_id: number; menu_name: string; menu_price: number; quantity: number }>;
@@ -135,11 +57,11 @@ export function createOrder(input: {
   const orderId = Date.now();
   const order: Order = {
     order_id: orderId,
-    session_id: getSessionId(),
     restaurant_id: input.restaurantId,
-    payment_type: input.paymentType,
+    restaurant_name: input.restaurantName,
+    payment_type: "single",
     status: "paid",
-    required_payers: input.requiredPayers,
+    required_payers: 1,
     total_amount: input.totalAmount,
     ordered_at: now(),
     updated_at: now(),
@@ -156,7 +78,6 @@ export function createOrder(input: {
   const payment: Payment = {
     payment_id: orderId + 1,
     order_id: orderId,
-    session_id: getSessionId(),
     payment_method: input.paymentMethod,
     paid_amount: input.totalAmount,
     status: "paid",
@@ -165,6 +86,5 @@ export function createOrder(input: {
   };
   write(KEYS.payments, [...read<Payment[]>(KEYS.payments, []), payment]);
 
-  clearCart();
   return order;
 }

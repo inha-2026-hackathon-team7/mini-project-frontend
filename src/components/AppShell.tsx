@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ReceiptText, ShoppingBag } from "lucide-react";
 import type { ReactNode } from "react";
-import { useStoreValue } from "@/hooks/use-store";
-import { getCartItems } from "@/lib/store";
+import { cartQuery } from "@/lib/cart";
 
 interface AppShellProps {
   title: string;
@@ -12,8 +12,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ title, backTo, children, footer }: AppShellProps) {
-  const items = useStoreValue(getCartItems, []);
-  const count = items.reduce((sum, i) => sum + i.quantity, 0);
+  const { data: cart } = useQuery(cartQuery());
+  const count = (cart?.items ?? []).reduce((sum, i) => sum + i.quantity, 0);
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -64,4 +64,20 @@ export function BackLink({ to, params }: { to: string; params?: Record<string, s
       <ChevronLeft className="size-5" />
     </Link>
   );
+}
+
+/** API 호출 실패 시 공통 안내 */
+export function ApiErrorState({ message }: { message?: string | undefined }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-24 text-center">
+      <p className="text-sm font-semibold">불러오지 못했어요</p>
+      <p className="text-sm text-muted-foreground">
+        {message ?? "서버에 연결할 수 없습니다. API 서버가 실행 중인지 확인해 주세요."}
+      </p>
+    </div>
+  );
+}
+
+export function LoadingState() {
+  return <p className="py-24 text-center text-sm text-muted-foreground">불러오는 중…</p>;
 }

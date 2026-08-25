@@ -1,76 +1,93 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AppShell, BackLink } from "@/components/AppShell";
+import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { formatWon, menuQuery, restaurantQuery } from "@/data/api";
-import { addToCart, getCart } from "@/lib/store";
+import { formatWon, menuQuery } from "@/data/api";
+import { addCartItem, CART_QUERY_KEY, fetchCart } from "@/lib/cart";
 
 export const Route = createFileRoute("/restaurants/$restaurantId/menus/$menuId")({
-  loader: async ({ context, params }) => {
-    const menu = await context.queryClient.ensureQueryData(menuQuery(Number(params.menuId)));
-    if (!menu) throw notFound();
-    context.queryClient.ensureQueryData(restaurantQuery(Number(params.restaurantId)));
-    return { name: menu.name, description: menu.description };
-  },
-  head: ({ loaderData }) => {
-    const title = loaderData ? `${loaderData.name} — 배달모아` : "메뉴 상세 — 배달모아";
-    const description = loaderData?.description ?? "메뉴 상세 정보를 확인하고 담아보세요.";
-    return {
-      meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      { title: "메뉴 상세 — 배달모아" },
+      { name: "description", content: "메뉴 상세 정보를 확인하고 장바구니에 담아보세요." },
+      { property: "og:title", content: "메뉴 상세 — 배달모아" },
+      { property: "og:description", content: "메뉴 상세 정보를 확인하고 담아보세요." },
+    ],
+  }),
   component: MenuDetailPage,
 });
 
 function MenuDetailPage() {
   const { restaurantId, menuId } = Route.useParams();
   const navigate = useNavigate();
-  const { data: menu } = useSuspenseQuery(menuQuery(Number(menuId)));
-  const { data: restaurant } = useSuspenseQuery(restaurantQuery(Number(restaurantId)));
+  const queryClient = useQueryClient();
+  const { data: menu, isLoading, error } = useQuery(menuQuery(Number(menuId)));
   const [quantity, setQuantity] = useState(1);
   const [request, setRequest] = useState("");
+  const [pending, setPending] = useState(false);
 
-  if (!menu) return null;
+  const back = <BackLink to="/restaurants/$restaurantId" params={{ restaurantId }} />;
+
+  if (isLoading) {
+    return (
+      <AppShell title="메뉴" backTo={back}>
+        <LoadingState />
+      </AppShell>
+    );
+  }
+
+  if (error || !menu) {
+    return (
+      <AppShell title="메뉴" backTo={back}>
+        <ApiErrorState message={(error as Error | null)?.message} />
+      </AppShell>
+    );
+  }
 
   const total = menu.price * quantity;
 
-  const handleAdd = () => {
-    const cart = getCart();
-    if (cart && cart.restaurant_id !== menu.restaurant_id) {
-      const ok = window.confirm(
-        "다른 식당의 메뉴가 장바구니에 있어요. 장바구니를 비우고 새로 담을까요?",
-      );
-      if (!ok) return;
+  const handleAdd = async () => {
+    setPending(true);
+    try {
+      const cart = await fetchCart();
+      let clearExisting = false;
+      if (cart.restaurantId && cart.restaurantId !== menu.restaurantId) {
+        const ok = window.confirm(
+          "다른 식당의 메뉴가 장바구니에 있어요. 장바구니를 비우고 새로 담을까요?",
+        );
+        if (!ok) return;
+        clearExisting = true;
+      }
+      await addCartItem({ menuId: menu.menuId, quantity, clearExisting });
+      await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+      toast.success("장바구니에 담았어요");
+      navigate({ to: "/cart" });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPending(false);
     }
-    addToCart(menu.restaurant_id, menu.menu_id, quantity);
-    toast.success("장바구니에 담았어요");
-    navigate({ to: "/cart" });
   };
 
   return (
     <AppShell
       title={menu.name}
-      backTo={<BackLink to="/restaurants/$restaurantId" params={{ restaurantId }} />}
+      backTo={back}
       footer={
-        <Button className="h-12 w-full text-base" onClick={handleAdd}>
+        <Button className="h-12 w-full text-base" disabled={pending} onClick={handleAdd}>
           {formatWon(total)} 담기
         </Button>
       }
     >
-      <img src={menu.image_url} alt={menu.name} className="h-48 w-full object-cover" />
+      <img src={menu.imageUrl} alt={menu.name} className="h-48 w-full bg-muted object-cover" />
 
       <div className="space-y-4 p-4">
         <div>
-          <p className="text-xs text-muted-foreground">{restaurant?.name}</p>
+          <p className="text-xs text-muted-foreground">{menu.restaurantName}</p>
           <h2 className="mt-1 text-lg font-bold">{menu.name}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{menu.description}</p>
           <p className="mt-2 text-lg font-bold">{formatWon(menu.price)}</p>
