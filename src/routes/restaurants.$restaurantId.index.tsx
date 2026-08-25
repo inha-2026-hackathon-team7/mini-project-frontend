@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
+import { MinimumOrderSheet } from "@/components/MinimumOrderSheet";
 import { formatWon, restaurantQuery } from "@/data/api";
 
 export const Route = createFileRoute("/restaurants/$restaurantId/")({
@@ -104,6 +105,8 @@ function RestaurantDetailPage() {
           )}
         </ul>
       </section>
+
+      <MinimumOrderSheet restaurant={restaurant} />
     </AppShell>
   );
 }
