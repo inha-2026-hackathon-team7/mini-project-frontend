@@ -67,7 +67,7 @@ export function BackLink({ to, params }: { to: string; params?: Record<string, s
 }
 
 /** API 호출 실패 시 공통 안내 */
-export function ApiErrorState({ message }: { message?: string }) {
+export function ApiErrorState({ message }: { message?: string | undefined }) {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-24 text-center">
       <p className="text-sm font-semibold">불러오지 못했어요</p>

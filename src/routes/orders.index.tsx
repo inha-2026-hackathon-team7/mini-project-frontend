@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, BackLink } from "@/components/AppShell";
 import { formatWon } from "@/data/api";
-import { restaurants } from "@/data/mock";
 import { useStoreValue } from "@/hooks/use-store";
 import { getOrders } from "@/lib/store";
 import { ORDER_STATUS_LABEL } from "@/lib/labels";
@@ -32,33 +31,28 @@ function OrderListPage() {
         </div>
       ) : (
         <ul className="space-y-3 p-4">
-          {orders.map((order) => {
-            const restaurant = restaurants.find(
-              (r) => r.restaurant_id === order.restaurant_id,
-            );
-            return (
-              <li key={order.order_id}>
-                <Link
-                  to="/orders/$orderId"
-                  params={{ orderId: String(order.order_id) }}
-                  className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-primary">
-                      {ORDER_STATUS_LABEL[order.status]}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(order.ordered_at).toLocaleString("ko-KR")}
-                    </span>
-                  </div>
-                  <p className="mt-1 font-semibold">{restaurant?.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {formatWon(order.total_amount)}
-                  </p>
-                </Link>
-              </li>
-            );
-          })}
+          {orders.map((order) => (
+            <li key={order.order_id}>
+              <Link
+                to="/orders/$orderId"
+                params={{ orderId: String(order.order_id) }}
+                className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-primary">
+                    {ORDER_STATUS_LABEL[order.status]}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(order.ordered_at).toLocaleString("ko-KR")}
+                  </span>
+                </div>
+                <p className="mt-1 font-semibold">{order.restaurant_name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {formatWon(order.total_amount)}
+                </p>
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
     </AppShell>

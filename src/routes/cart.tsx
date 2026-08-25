@@ -1,11 +1,16 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { AppShell, BackLink } from "@/components/AppShell";
+import { toast } from "sonner";
+import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { formatWon } from "@/data/api";
-import { menus, restaurants } from "@/data/mock";
-import { useStoreValue } from "@/hooks/use-store";
-import { getCart, getCartItems, removeCartItem, updateCartItemQuantity } from "@/lib/store";
+import {
+  CART_QUERY_KEY,
+  cartQuery,
+  removeCartItem,
+  updateCartItemQuantity,
+} from "@/lib/cart";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -21,38 +26,62 @@ export const Route = createFileRoute("/cart")({
 
 function CartPage() {
   const navigate = useNavigate();
-  const cart = useStoreValue(getCart, null);
-  const items = useStoreValue(getCartItems, []);
+  const queryClient = useQueryClient();
+  const { data: cart, isLoading, error } = useQuery(cartQuery());
 
-  const restaurant = restaurants.find((r) => r.restaurant_id === cart?.restaurant_id);
-  const lines = items.map((item) => ({
-    item,
-    menu: menus.find((m) => m.menu_id === item.menu_id)!,
-  }));
-  const subtotal = lines.reduce((sum, l) => sum + l.menu.price * l.item.quantity, 0);
-  const deliveryFee = restaurant?.delivery_fee ?? 0;
-  const minimum = restaurant?.minimum_order_amount ?? 0;
-  const canOrder = lines.length > 0 && subtotal >= minimum;
+  const items = cart?.items ?? [];
+  const refresh = () => queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+
+  const runAction = async (action: () => Promise<unknown>) => {
+    try {
+      await action();
+      await refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const backTo = cart?.restaurantId ? (
+    <BackLink
+      to="/restaurants/$restaurantId"
+      params={{ restaurantId: String(cart.restaurantId) }}
+    />
+  ) : (
+    <BackLink to="/" />
+  );
+
+  if (isLoading) {
+    return (
+      <AppShell title="장바구니" backTo={backTo}>
+        <LoadingState />
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell title="장바구니" backTo={backTo}>
+        <ApiErrorState message={(error as Error).message} />
+      </AppShell>
+    );
+  }
+
+  const subtotal = cart?.subtotal ?? 0;
+  const deliveryFee = cart?.deliveryFee ?? 0;
+  const totalAmount = cart?.totalAmount ?? subtotal + deliveryFee;
+  const remaining = cart?.remainingAmount ?? 0;
+  const canOrder = items.length > 0 && (cart?.canOrder ?? false);
 
   return (
     <AppShell
       title="장바구니"
-      backTo={
-        restaurant ? (
-          <BackLink
-            to="/restaurants/$restaurantId"
-            params={{ restaurantId: String(restaurant.restaurant_id) }}
-          />
-        ) : (
-          <BackLink to="/" />
-        )
-      }
+      backTo={backTo}
       footer={
-        lines.length > 0 ? (
+        items.length > 0 ? (
           <div className="space-y-2">
-            {!canOrder && (
+            {!canOrder && remaining > 0 && (
               <p className="text-center text-xs text-muted-foreground">
-                최소 주문금액까지 {formatWon(minimum - subtotal)} 남았어요
+                최소 주문금액까지 {formatWon(remaining)} 남았어요
               </p>
             )}
             <Button
@@ -60,13 +89,13 @@ function CartPage() {
               disabled={!canOrder}
               onClick={() => navigate({ to: "/checkout" })}
             >
-              {formatWon(subtotal + deliveryFee)} 주문하기
+              {formatWon(totalAmount)} 주문하기
             </Button>
           </div>
         ) : undefined
       }
     >
-      {lines.length === 0 ? (
+      {items.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-24">
           <p className="text-sm text-muted-foreground">장바구니가 비어 있어요.</p>
           <Link to="/" className="text-sm font-semibold text-primary">
@@ -75,30 +104,30 @@ function CartPage() {
         </div>
       ) : (
         <div className="space-y-4 p-4">
-          <p className="text-sm font-semibold">{restaurant?.name}</p>
+          <p className="text-sm font-semibold">{cart?.restaurantName}</p>
           <ul className="divide-y">
-            {lines.map(({ item, menu }) => (
-              <li key={item.cart_item_id} className="flex gap-3 py-3">
+            {items.map((item) => (
+              <li key={item.cartItemId} className="flex gap-3 py-3">
                 <img
-                  src={menu.image_url}
-                  alt={menu.name}
+                  src={item.imageUrl}
+                  alt={item.menuName}
                   loading="lazy"
-                  className="size-16 rounded-lg object-cover"
+                  className="size-16 rounded-lg bg-muted object-cover"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium">{menu.name}</p>
+                    <p className="font-medium">{item.menuName}</p>
                     <button
                       type="button"
                       aria-label="삭제"
-                      onClick={() => removeCartItem(item.cart_item_id)}
+                      onClick={() => runAction(() => removeCartItem(item.cartItemId))}
                       className="text-muted-foreground transition-colors hover:text-destructive"
                     >
                       <Trash2 className="size-4" />
                     </button>
                   </div>
                   <p className="mt-1 text-sm font-semibold">
-                    {formatWon(menu.price * item.quantity)}
+                    {formatWon(item.itemTotalAmount ?? item.menuPrice * item.quantity)}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <Button
@@ -107,7 +136,11 @@ function CartPage() {
                       className="size-8"
                       aria-label="수량 줄이기"
                       onClick={() =>
-                        updateCartItemQuantity(item.cart_item_id, item.quantity - 1)
+                        runAction(() =>
+                          item.quantity <= 1
+                            ? removeCartItem(item.cartItemId)
+                            : updateCartItemQuantity(item.cartItemId, item.quantity - 1),
+                        )
                       }
                     >
                       <Minus className="size-3.5" />
@@ -119,7 +152,9 @@ function CartPage() {
                       className="size-8"
                       aria-label="수량 늘리기"
                       onClick={() =>
-                        updateCartItemQuantity(item.cart_item_id, item.quantity + 1)
+                        runAction(() =>
+                          updateCartItemQuantity(item.cartItemId, item.quantity + 1),
+                        )
                       }
                     >
                       <Plus className="size-3.5" />
@@ -141,7 +176,7 @@ function CartPage() {
             </div>
             <div className="flex justify-between border-t pt-1.5 font-bold">
               <dt>합계</dt>
-              <dd>{formatWon(subtotal + deliveryFee)}</dd>
+              <dd>{formatWon(totalAmount)}</dd>
             </div>
           </dl>
         </div>
