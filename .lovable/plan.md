@@ -1,31 +1,64 @@
-# 실제 API 연동 계획
+# 실제 API 연동 계획 (Swagger v0.0.1 기준)
 
-API 서버 + swagger 명세가 완성되어 기존 목데이터/로컬 저장 계층을 실제 API로 교체한다. 인증은 없고 서버 발급 `session_id`로 사용자(세션)별 데이터를 식별한다.
+명세를 확인했습니다. **식당 / 메뉴 / 장바구니**는 API가 준비되어 있고, **주문·결제 API는 아직 없습니다.** 따라서 이번 단계는 "준비된 3개 영역은 실제 API로 교체, 주문/결제는 기존 로컬 방식 유지"로 진행합니다.
 
-## 전달 방식
-- swagger `api-docs` JSON을 채팅에 직접 붙여넣는다 → 다음 세션에서 그 명세를 파싱해 엔드포인트 맵을 구성한다.
+## Base URL 변경 위치
 
-## 현재 구조 (교체 대상)
-- `src/data/api.ts` — 식당/메뉴/이미지 조회를 목데이터로 반환 (Promise 형태). 교체 포인트.
-- `src/lib/store.ts` — cart / cart_items / orders / order_items / payments를 localStorage에 저장. `session_id`는 `bm.session_id` 키로 이미 발급 중. 교체 포인트.
-- `src/hooks/use-store.ts` — localStorage 구독 훅. 서버 전환 후 쿼리 캐시/무효화 기반으로 대체 검토.
+`.env` 파일의 한 줄만 바꾸면 됩니다.
 
-## 연동 원칙
-- 데이터 접근은 모두 `src/data/api.ts`와 `src/lib/store.ts` 양 끝에 집중 → 함수 본문만 fetch 호출로 교체. 라우트/컴포넌트는 거의 그대로 유지.
-- `session_id`: 클라이언트에서 발급하던 UUID를 서버 발급 값으로 전환. 최초 진입 시 API에서 세션을 발급(또는 기존 키 재사용)하고, 이후 모든 요청에 `session_id`를 파라미터/헤더로 실어 보낸다. 명세 확인 후 정확한 전달 위치 확정.
-- TanStack Query 캐시키는 그대로 유지하고, 장바구니/주문 변경 후 `queryClient.invalidateQueries`로 동기화.
-- 금액은 정수 원 단위 유지(ERD 일치). 서버 응답 필드명이 다르면 매핑 레이어 추가.
-- API 베이스 URL은 환경 변수(`VITE_API_BASE_URL`)로 관리.
+```
+VITE_API_BASE_URL=http://localhost:8080
+```
 
-## 작업 단계 (swagger 제공 후)
-1. 명세 파싱 → 엔드포인트/요청/응답 스키마 정리, `src/data/types.ts`와 필드 매핑 확인(불일치 시 매핑/조정).
-2. `src/data/api.ts` 본문을 fetch 호출로 교체 (식당 목록/상세/이미지/메뉴/메뉴상세).
-3. `src/lib/store.ts`를 서버 호출 기반으로 교체: 장바구니 조회/추가/수량변경/삭제, 주문 생성, 결제 생성, 주문 내역 조회. 로컬 저장 제거.
-4. `session_id` 발급·전달 로직을 서버 기반으로 전환 (최초 1회 API 호출로 발급, 이후 요청마다 첨부).
-5. `use-store.ts`를 Query 기반 구독으로 조정 또는 단순화.
-6. 결제 시 더치페이(분할결제)는 이미 제외됨 → `payment_type`/`required_payers` 단일 결제로 고정되어 있는지 확인.
+- 배포 시: 이 값을 실제 서버 주소(예: `https://api.example.com`)로 변경
+- 코드에서는 `src/lib/http.ts` 한 곳에서만 이 값을 읽으므로 다른 파일은 손댈 필요 없음
+- 값이 없으면 `http://localhost:8080`을 기본값으로 사용
 
-## 기능 격차 검토 (다음 세션에서 병행)
-- 현재 웹에 구현된 기능(식당 목록/검색/영업중필터, 식당 상세, 메뉴 상세+수량+요청사항, 장바구니, 결제, 주문 내역/상세)을 API 엔드포인트와 대조.
-- API에 없는 기능, 웹에 없는 API 기능(예: 영업시간, 별점, 리뷰, 메뉴 옵션, 배달 추적 등)을 정리 → MVP에 포함할지 결정.
-- 결과를 계획에 반영하여 부족 기능 보강 또는 명세 기준으로 웹 기능 정리.
+## 세션 처리
+
+명세상 장바구니는 **세션 쿠키 기반**이므로, 모든 요청에 `credentials: "include"`를 붙여 서버가 발급한 세션 쿠키를 주고받습니다. 클라이언트에서 UUID를 발급하던 기존 방식(`bm.session_id`)은 제거합니다.
+
+서버 쪽에서 CORS 설정이 필요합니다(프론트 도메인 허용 + `allowCredentials: true`). 이 설정이 없으면 장바구니가 매 요청마다 새로 생성됩니다.
+
+## API 매핑
+
+| 화면 | 사용할 API |
+| --- | --- |
+| 식당 목록 `/` | `GET /restaurant/list` |
+| 식당 상세 | `GET /restaurant/{restaurantId}` (이미지·메뉴 포함, 한 번에 조회) |
+| 메뉴 상세 | `GET /menu/{menuId}` |
+| 장바구니 조회 | `GET /cart` |
+| 담기 | `POST /cart/items` (`clearExisting`으로 다른 식당 교체 처리) |
+| 수량 변경 | `PATCH /cart/items/{cartItemId}` |
+| 항목 삭제 | `DELETE /cart/items/{cartItemId}` |
+| 비우기 | `DELETE /cart` |
+
+응답 필드는 camelCase(`restaurantId`, `open`, `available`)이므로 기존 snake_case 타입을 API DTO 기준으로 다시 정의합니다.
+
+## 주문·결제 (API 미제공 → 현행 유지)
+
+`/checkout`, `/orders`, `/orders/{id}`에 해당하는 API가 명세에 없습니다. 이 부분은 지금처럼 localStorage 기반으로 남겨두고, 결제 시 장바구니 데이터를 서버에서 읽어와 주문을 로컬 생성한 뒤 `DELETE /cart`로 서버 장바구니를 비웁니다. 주문 API가 추가되면 그때 교체합니다.
+
+## 부족한 API 정리 (백엔드 요청 목록)
+
+- `POST /order` — 주문 생성 (장바구니 → 주문)
+- `GET /order/list` — 주문 내역 목록
+- `GET /order/{orderId}` — 주문 상세 (주문 항목 + 결제 정보)
+- `POST /payment` 또는 주문 생성에 결제수단 포함 — 결제 처리
+- (선택) 주문 상태 변경/조회 — cooking, delivering 등 상태 표현용
+
+## 구현 작업
+
+1. `.env` + `src/lib/http.ts` — base URL과 공통 fetch 래퍼(`credentials: "include"`, 에러 처리) 작성
+2. `src/data/types.ts` — API DTO 기준 타입으로 교체 (주문/결제 타입은 유지)
+3. `src/data/api.ts` — 목데이터 대신 실제 fetch 호출 + Query 옵션 갱신
+4. `src/lib/cart.ts` (신규) — 장바구니 API 호출 함수 + Query 옵션
+5. `src/lib/store.ts` — 장바구니 관련 로컬 로직 제거, 주문/결제만 남김
+6. 각 라우트 컴포넌트를 새 필드명/쿼리에 맞춰 수정, 장바구니 변경 후 `invalidateQueries`로 동기화
+7. `src/data/mock.ts` 삭제
+8. 서버 미실행 시 화면이 깨지지 않도록 각 화면에 에러/빈 상태 표시
+
+## 기술 노트
+
+- 모든 API 호출은 브라우저에서 실행(SSR에서 localhost 호출 불가)하도록 라우트 loader의 사전 fetch를 걷어내고 컴포넌트 쿼리로 처리
+- 서버가 꺼져 있으면 "서버에 연결할 수 없습니다" 안내 표시
