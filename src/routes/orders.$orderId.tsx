@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { AppShell, BackLink } from "@/components/AppShell";
 import { formatWon } from "@/data/api";
-import { restaurants } from "@/data/mock";
 import { useStoreValue } from "@/hooks/use-store";
 import { getOrder, getOrderItems, getPaymentByOrder } from "@/lib/store";
 import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from "@/lib/labels";
@@ -27,7 +26,6 @@ function OrderDetailPage() {
   const items = useStoreValue(useCallback(() => getOrderItems(id), [id]), []);
   const payment = useStoreValue(useCallback(() => getPaymentByOrder(id), [id]), null);
 
-  const restaurant = restaurants.find((r) => r.restaurant_id === order?.restaurant_id);
   const itemsTotal = items.reduce((sum, i) => sum + i.menu_price * i.quantity, 0);
 
   return (
@@ -45,7 +43,7 @@ function OrderDetailPage() {
             <p className="text-xs font-semibold text-primary">
               {ORDER_STATUS_LABEL[order.status]}
             </p>
-            <h2 className="mt-1 text-lg font-bold">{restaurant?.name}</h2>
+            <h2 className="mt-1 text-lg font-bold">{order.restaurant_name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               주문번호 {order.order_id} · {new Date(order.ordered_at).toLocaleString("ko-KR")}
             </p>
