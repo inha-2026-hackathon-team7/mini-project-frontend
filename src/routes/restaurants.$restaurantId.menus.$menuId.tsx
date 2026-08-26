@@ -5,7 +5,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { formatWon, menuQuery } from "@/data/api";
 import { addCartItem, CART_QUERY_KEY, fetchCart } from "@/lib/cart";
 
@@ -27,7 +26,6 @@ function MenuDetailPage() {
   const queryClient = useQueryClient();
   const { data: menu, isLoading, error } = useQuery(menuQuery(Number(menuId)));
   const [quantity, setQuantity] = useState(1);
-  const [request, setRequest] = useState("");
   const [pending, setPending] = useState(false);
 
   const back = <BackLink to="/restaurants/$restaurantId" params={{ restaurantId }} />;
@@ -64,8 +62,8 @@ function MenuDetailPage() {
       }
       await addCartItem({ menuId: menu.menuId, quantity, clearExisting });
       await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-      toast.success("장바구니에 담았어요");
-      navigate({ to: "/cart" });
+      toast.success("메뉴가 추가되었어요");
+      navigate({ to: "/restaurants/$restaurantId", params: { restaurantId } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -114,18 +112,6 @@ function MenuDetailPage() {
               <Plus className="size-4" />
             </Button>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="request" className="text-sm font-medium">
-            요청사항
-          </label>
-          <Textarea
-            id="request"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            placeholder="예) 덜 맵게 해주세요"
-          />
         </div>
       </div>
     </AppShell>

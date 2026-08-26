@@ -20,3 +20,13 @@ export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   paid: "결제 완료",
   failed: "결제 실패",
 };
+
+// 백엔드가 내려주는 상태 문자열을 한글 라벨로 변환한다. 알 수 없는 값은 그대로 노출한다.
+export const orderStatusLabel = (status: string) =>
+  ORDER_STATUS_LABEL[status as OrderStatus] ?? status;
+
+export const paymentMethodLabel = (method: string) =>
+  PAYMENT_METHOD_LABEL[method as PaymentMethod] ?? method;
+
+export const paymentStatusLabel = (status: string) =>
+  PAYMENT_STATUS_LABEL[status as PaymentStatus] ?? status;

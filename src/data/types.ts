@@ -72,7 +72,7 @@ export interface CartResponse {
   items: CartItemResponse[];
 }
 
-// ---- 주문/결제: 아직 API가 없어 로컬(localStorage)에 저장한다 ----
+// ---- 주문/결제 (백엔드 /orders* API 기준) ----
 
 export type OrderPaymentType = "single" | "split";
 export type OrderStatus =
@@ -85,33 +85,73 @@ export type OrderStatus =
 export type PaymentMethod = "card" | "transfer" | "cash";
 export type PaymentStatus = "pending" | "paid" | "failed";
 
-export interface Order {
-  order_id: number;
-  restaurant_id: number;
-  restaurant_name: string;
-  payment_type: OrderPaymentType;
-  status: OrderStatus;
-  required_payers: number;
-  total_amount: number;
-  ordered_at: string;
-  updated_at: string;
+export interface OrderListItem {
+  orderId: number;
+  restaurantId: number;
+  restaurantName: string;
+  status: string;
+  totalAmount: number;
+  orderedAt: string;
 }
 
-export interface OrderItem {
-  order_item_id: number;
-  order_id: number;
-  menu_id: number;
-  menu_name: string;
-  menu_price: number;
+export interface OrderItemResponse {
+  orderItemId: number;
+  menuId: number;
+  menuName: string;
+  menuPrice: number;
   quantity: number;
+  itemTotalAmount: number;
 }
 
-export interface Payment {
-  payment_id: number;
-  order_id: number;
-  payment_method: PaymentMethod;
-  paid_amount: number;
-  status: PaymentStatus;
-  created_at: string;
-  updated_at: string;
+export interface PaymentResponse {
+  paymentId: number;
+  paymentMethod: string;
+  paidAmount: number;
+  status: string;
+}
+
+export interface OrderDetail {
+  orderId: number;
+  restaurantId: number;
+  restaurantName: string;
+  paymentType: string;
+  status: string;
+  requiredPayers: number;
+  totalAmount: number;
+  orderedAt: string;
+  items: OrderItemResponse[];
+  payment: PaymentResponse | null;
+}
+
+// POST /orders 응답은 주문 상세와 동일한 형태로 내려온다.
+export type OrderCreateResponse = OrderDetail;
+
+export interface OrderCreateRequest {
+  paymentType: OrderPaymentType;
+  requiredPayers: number;
+  paymentMethod: PaymentMethod;
+}
+
+export interface CheckoutItemResponse {
+  cartItemId: number;
+  menuId: number;
+  menuName: string;
+  menuPrice: number;
+  imageUrl: string;
+  quantity: number;
+  itemTotalAmount: number;
+}
+
+export interface CheckoutResponse {
+  cartId: number | null;
+  restaurantId: number | null;
+  restaurantName: string | null;
+  minimumOrderAmount: number;
+  deliveryFee: number;
+  subtotal: number;
+  totalAmount: number;
+  remainingAmount: number;
+  canOrder: boolean;
+  items: CheckoutItemResponse[];
+  availablePaymentMethods: string[];
 }

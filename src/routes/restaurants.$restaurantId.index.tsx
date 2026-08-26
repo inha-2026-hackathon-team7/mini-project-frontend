@@ -41,7 +41,7 @@ function RestaurantDetailPage() {
   const menus = restaurant.menus ?? [];
 
   return (
-    <AppShell title={restaurant.name} backTo={<BackLink to="/" />}>
+    <AppShell title={restaurant.name} backTo={<BackLink to="/" />} cartHint>
       {images[0] && (
         <img
           src={images[0].imageUrl}

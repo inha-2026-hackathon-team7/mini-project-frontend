@@ -1,9 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell, BackLink } from "@/components/AppShell";
+import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { formatWon } from "@/data/api";
-import { useStoreValue } from "@/hooks/use-store";
-import { getOrders } from "@/lib/store";
-import { ORDER_STATUS_LABEL } from "@/lib/labels";
+import { orderStatusLabel } from "@/lib/labels";
+import { ordersQuery } from "@/lib/orders";
 
 export const Route = createFileRoute("/orders/")({
   head: () => ({
@@ -18,7 +18,24 @@ export const Route = createFileRoute("/orders/")({
 });
 
 function OrderListPage() {
-  const orders = useStoreValue(getOrders, []);
+  const { data, isLoading, error } = useQuery(ordersQuery());
+  const orders = data ?? [];
+
+  if (isLoading) {
+    return (
+      <AppShell title="주문 내역" backTo={<BackLink to="/" />}>
+        <LoadingState />
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell title="주문 내역" backTo={<BackLink to="/" />}>
+        <ApiErrorState message={(error as Error).message} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="주문 내역" backTo={<BackLink to="/" />}>
@@ -32,23 +49,23 @@ function OrderListPage() {
       ) : (
         <ul className="space-y-3 p-4">
           {orders.map((order) => (
-            <li key={order.order_id}>
+            <li key={order.orderId}>
               <Link
                 to="/orders/$orderId"
-                params={{ orderId: String(order.order_id) }}
+                params={{ orderId: String(order.orderId) }}
                 className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/40"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-primary">
-                    {ORDER_STATUS_LABEL[order.status]}
+                    {orderStatusLabel(order.status)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(order.ordered_at).toLocaleString("ko-KR")}
+                    {new Date(order.orderedAt).toLocaleString("ko-KR")}
                   </span>
                 </div>
-                <p className="mt-1 font-semibold">{order.restaurant_name}</p>
+                <p className="mt-1 font-semibold">{order.restaurantName}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatWon(order.total_amount)}
+                  {formatWon(order.totalAmount)}
                 </p>
               </Link>
             </li>

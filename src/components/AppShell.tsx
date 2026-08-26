@@ -9,11 +9,14 @@ interface AppShellProps {
   backTo?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  /** 최소주문금액을 충족하면 장바구니 아이콘에 "주문할 수 있어요!" 말풍선을 띄운다. */
+  cartHint?: boolean;
 }
 
-export function AppShell({ title, backTo, children, footer }: AppShellProps) {
+export function AppShell({ title, backTo, children, footer, cartHint = false }: AppShellProps) {
   const { data: cart } = useQuery(cartQuery());
   const count = (cart?.items ?? []).reduce((sum, i) => sum + i.quantity, 0);
+  const showCartHint = cartHint && count > 0 && (cart?.canOrder ?? false);
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -37,6 +40,12 @@ export function AppShell({ title, backTo, children, footer }: AppShellProps) {
             {count > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                 {count}
+              </span>
+            )}
+            {showCartHint && (
+              <span className="pointer-events-none absolute right-0 top-full z-30 mt-2.5 whitespace-nowrap rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-md">
+                주문할 수 있어요!
+                <span className="absolute -top-1 right-3 size-2 rotate-45 bg-primary" />
               </span>
             )}
           </Link>

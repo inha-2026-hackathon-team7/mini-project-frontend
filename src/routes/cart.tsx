@@ -68,6 +68,7 @@ function CartPage() {
 
   const subtotal = cart?.subtotal ?? 0;
   const deliveryFee = cart?.deliveryFee ?? 0;
+  const minimumOrderAmount = cart?.minimumOrderAmount ?? 0;
   const totalAmount = cart?.totalAmount ?? subtotal + deliveryFee;
   const remaining = cart?.remainingAmount ?? 0;
   const canOrder = items.length > 0 && (cart?.canOrder ?? false);
@@ -166,6 +167,10 @@ function CartPage() {
           </ul>
 
           <dl className="space-y-1.5 rounded-xl bg-muted/60 p-4 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">최소주문금액</dt>
+              <dd>{formatWon(minimumOrderAmount)}</dd>
+            </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">주문금액</dt>
               <dd>{formatWon(subtotal)}</dd>

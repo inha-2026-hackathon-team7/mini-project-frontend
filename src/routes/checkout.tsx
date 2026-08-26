@@ -1,13 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ApiErrorState, AppShell, BackLink, LoadingState } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { formatWon } from "@/data/api";
 import type { PaymentMethod } from "@/data/types";
-import { CART_QUERY_KEY, cartQuery, clearCart } from "@/lib/cart";
-import { createOrder } from "@/lib/store";
+import { CART_QUERY_KEY } from "@/lib/cart";
+import { paymentMethodLabel } from "@/lib/labels";
+import { checkoutQuery, createOrder, ORDERS_QUERY_KEY } from "@/lib/orders";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -21,23 +22,34 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
-const METHODS: Array<{ value: PaymentMethod; label: string }> = [
-  { value: "card", label: "카드" },
-  { value: "transfer", label: "계좌이체" },
-  { value: "cash", label: "만나서 결제" },
-];
+const DEFAULT_METHODS: PaymentMethod[] = ["card", "transfer", "cash"];
+
+const isPaymentMethod = (value: string): value is PaymentMethod =>
+  (DEFAULT_METHODS as string[]).includes(value);
 
 function CheckoutPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: cart, isLoading, error } = useQuery(cartQuery());
+  const { data: checkout, isLoading, error } = useQuery(checkoutQuery());
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [pending, setPending] = useState(false);
 
-  const items = cart?.items ?? [];
-  const subtotal = cart?.subtotal ?? 0;
-  const deliveryFee = cart?.deliveryFee ?? 0;
-  const total = cart?.totalAmount ?? subtotal + deliveryFee;
+  const items = checkout?.items ?? [];
+  const subtotal = checkout?.subtotal ?? 0;
+  const deliveryFee = checkout?.deliveryFee ?? 0;
+  const total = checkout?.totalAmount ?? subtotal + deliveryFee;
+  const canOrder = items.length > 0 && (checkout?.canOrder ?? false);
+
+  const methods =
+    checkout?.availablePaymentMethods?.filter(isPaymentMethod) ?? DEFAULT_METHODS;
+
+  // 서버가 내려준 결제수단만 선택 가능하도록, 현재 선택이 목록에 없으면 첫 항목으로 맞춘다.
+  useEffect(() => {
+    const first = methods[0];
+    if (first && !methods.includes(method)) {
+      setMethod(first);
+    }
+  }, [methods, method]);
 
   if (isLoading) {
     return (
@@ -56,26 +68,21 @@ function CheckoutPage() {
   }
 
   const handlePay = async () => {
-    if (!cart?.restaurantId || items.length === 0) return;
+    if (items.length === 0) return;
     setPending(true);
     try {
-      // 주문/결제 API가 아직 없어 로컬에 주문을 생성한다.
-      const order = createOrder({
-        restaurantId: cart.restaurantId,
-        restaurantName: cart.restaurantName ?? "",
+      const order = await createOrder({
+        paymentType: "single",
+        requiredPayers: 1,
         paymentMethod: method,
-        totalAmount: total,
-        items: items.map((item) => ({
-          menu_id: item.menuId,
-          menu_name: item.menuName,
-          menu_price: item.menuPrice,
-          quantity: item.quantity,
-        })),
       });
-      await clearCart();
-      await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ["checkout"] }),
+      ]);
       toast.success("결제가 완료되었어요");
-      navigate({ to: "/orders/$orderId", params: { orderId: String(order.order_id) } });
+      navigate({ to: "/orders/$orderId", params: { orderId: String(order.orderId) } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -90,7 +97,7 @@ function CheckoutPage() {
       footer={
         <Button
           className="h-12 w-full text-base"
-          disabled={items.length === 0 || pending}
+          disabled={!canOrder || pending}
           onClick={handlePay}
         >
           {formatWon(total)} 결제하기
@@ -103,7 +110,7 @@ function CheckoutPage() {
         <div className="space-y-6 p-4">
           <section>
             <h2 className="mb-2 font-bold">주문 내역</h2>
-            <p className="mb-2 text-sm text-muted-foreground">{cart?.restaurantName}</p>
+            <p className="mb-2 text-sm text-muted-foreground">{checkout?.restaurantName}</p>
             <ul className="space-y-1 text-sm">
               {items.map((item) => (
                 <li key={item.cartItemId} className="flex justify-between">
@@ -121,18 +128,18 @@ function CheckoutPage() {
           <section>
             <h2 className="mb-2 font-bold">결제 수단</h2>
             <div className="grid grid-cols-3 gap-2">
-              {METHODS.map((m) => (
+              {methods.map((value) => (
                 <button
-                  key={m.value}
+                  key={value}
                   type="button"
-                  onClick={() => setMethod(m.value)}
+                  onClick={() => setMethod(value)}
                   className={`rounded-lg border px-2 py-3 text-sm font-medium transition-colors ${
-                    method === m.value
+                    method === value
                       ? "border-primary bg-primary/10 text-primary"
                       : "text-muted-foreground"
                   }`}
                 >
-                  {m.label}
+                  {paymentMethodLabel(value)}
                 </button>
               ))}
             </div>
